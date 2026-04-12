@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CLONEFLIX VIP</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        :root { --bg: #0b0b0b; --red: #E50914; --card: #141414; --text: #fff; --border: #222; --yellow: #ffcc00; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+        
+        header { position: fixed; top: 0; width: 100%; height: 60px; background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%); display: flex; align-items: center; padding: 0 15px; z-index: 1000; justify-content: space-between; box-sizing: border-box; }
+        .logo { color: var(--red); font-weight: bold; font-size: 22px; letter-spacing: -1px; }
+        .btn-voltar { background: #2a2a2a; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .btn-red { background: var(--red); color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
+
+        .user-validade { font-size: 10px; color: var(--yellow); font-weight: bold; text-align: right; line-height: 1.2; }
+
+        #portal-inicio { display: none; padding: 80px 20px 20px; text-align: center; min-height: 100vh; box-sizing: border-box; }
+        .grid-portal { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 500px; margin: 0 auto; }
+        .btn-portal { background: linear-gradient(45deg, #141414, #222); border: 2px solid #333; border-radius: 15px; padding: 40px 20px; color: white; font-size: 24px; font-weight: 900; text-transform: uppercase; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .btn-portal:active { transform: scale(0.95); border-color: var(--red); }
+
+        .section-divider { margin: 30px 15px 10px; padding: 5px 0; border-bottom: 2px solid var(--red); display: inline-block; font-size: 18px; font-weight: 900; color: #fff; text-transform: uppercase; }
+        .row { margin: 10px 0 30px 15px; }
+        .row-header { display: flex; justify-content: space-between; align-items: center; padding-right: 15px; margin-bottom: 10px; }
+        .row-title { font-size: 16px; font-weight: bold; color: #e5e5e5; }
+        .row-posters { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
+        .row-posters::-webkit-scrollbar { display: none; }
+
+        .card { flex: 0 0 auto; width: 110px; border-radius: 4px; overflow: hidden; cursor: pointer; background: var(--card); border: 1px solid #222; position: relative; transition: 0.2s; }
+        .card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
+        .card-title { 
+            font-size: 11px; padding: 6px 5px; text-align: center; color: #fff; font-weight: 500;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; text-overflow: ellipsis; white-space: normal; height: 32px;
+        }
+        .card.em-andamento { border: 2px solid var(--yellow); box-shadow: 0 0 10px rgba(255, 204, 0, 0.3); }
+        .badge-continuar { position: absolute; top: 5px; right: 5px; background: var(--yellow); color: #000; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; }
+
+        #player-area { width: 100%; background: #000; position: sticky; top: 60px; z-index: 900; display: none; border-bottom: 2px solid var(--red); }
+        .player-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; }
+        video { width: 100%; height: 100%; }
+
+        .player-nav { display: flex; justify-content: space-between; padding: 10px; background: #111; gap: 5px; }
+        .list-epis-player { background: #000; max-height: 200px; overflow-y: auto; padding: 10px; border-top: 1px solid #222; display: none; }
+        .epi-item-player { padding: 12px; border-bottom: 1px solid #222; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; }
+        .epi-item-player.active { color: var(--red); font-weight: bold; background: #111; }
+        .epi-item-player.assistido { border-right: 4px solid var(--yellow); }
+
+        .container-box { background: var(--card); border-radius: 12px; padding: 20px; margin: 15px; border: 1px solid var(--border); }
+        input, textarea, select { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #222; color: #fff; box-sizing: border-box; }
+        .tabela-container { overflow-x: auto; background: #0c0c0c; border-radius: 8px; max-height: 350px; overflow-y: auto; border: 1px solid #222; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #222; white-space: nowrap; }
+        .btn-mini { padding: 6px 10px; border-radius: 4px; border: none; color: white; cursor: pointer; font-size: 10px; font-weight: bold; margin-right: 2px; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 2000; padding: 20px; overflow-y: auto; }
+        .folder-item { background: #1a1a1a; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid var(--red); cursor: pointer; display: flex; justify-content: space-between; font-weight: bold; }
+        .folder-item.progresso-yellow { border-right: 4px solid var(--yellow); }
+
+        #modal-info { display: none; position: fixed; inset: 0; background: #000; z-index: 3000; overflow-y: auto; }
+        .info-capa-bg { width: 100%; height: 40vh; background-size: cover; background-position: center; position: relative; }
+        .info-capa-bg::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, #000, transparent); }
+        .info-content { padding: 20px; position: relative; margin-top: -50px; }
+        .info-titulo { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+        .info-sinopse { font-size: 14px; color: #ccc; line-height: 1.5; margin-bottom: 20px; }
+
+        .btn-perfil { background: #2a2a2a; color: white; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+
+        #tela-bloqueio { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="tela-bloqueio">
+        <h1 style="color:var(--red); font-size: 30px;">SESSÃO ENCERRADA</h1>
+        <p style="color: #ccc;">Este login foi utilizado em outro aparelho.</p>
+        <p style="font-size: 12px; color: var(--yellow);">O limite de telas foi atingido e a sessão anterior foi desconectada.</p>
+        <button class="btn-red" style="margin-top: 20px;" onclick="location.reload()">VOLTAR AO LOGIN</button>
+    </div>
+
+    <div id="login-container" style="position:fixed; inset:0; background:#000; display:flex; align-items:center; justify-content:center; z-index:9999;">
+        <div class="container-box" style="width: 85%; max-width: 350px; text-align: center;">
+            <h1 style="color:var(--red); margin-bottom: 20px;">CLONEFLIX</h1>
+            <input type="text" id="u-l" placeholder="Usuário">
+            <input type="password" id="p-l" placeholder="Senha">
+            <button class="btn-red" id="btn-entrar" style="width:100%">ENTRAR</button>
+        </div>
+    </div>
+
+    <div id="main-content" style="display:none; padding-top: 60px;">
+        <header>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button class="btn-voltar" id="btn-portal-back" style="display:none" onclick="voltarAoPortal()">← INÍCIO</button>
+                <div class="logo">CLONEFLIX</div>
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div id="display-validade" class="user-validade"></div>
+                <div style="display:flex; gap:5px;">
+                    <button id="b-a" class="btn-red" style="display:none; padding: 6px 10px;">ADM</button>
+                    <button class="btn-perfil" onclick="abrirPerfil()">👤</button>
+                    <button class="btn-voltar" onclick="location.reload()" style="padding: 6px 10px;">SAIR</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="portal-inicio">
+            <h2 style="margin-bottom: 30px; font-weight: 300;">O que vamos assistir hoje?</h2>
+            <div class="grid-portal">
+                <button class="btn-portal" onclick="filtrarPortal('tv')">📺 <span>TV AO VIVO</span></button>
+                <button class="btn-portal" onclick="filtrarPortal('filme')">🎬 <span>FILMES</span></button>
+                <button class="btn-portal" onclick="filtrarPortal('serie')">🍿 <span>SÉRIES</span></button>
+            </div>
+        </div>
+
+        <div id="conteudo-app" style="display: none;">
+            <div id="player-area">
+                <div class="player-wrapper"><video id="main-video" controls playsinline></video></div>
+                <div class="player-nav">
+                    <button class="btn-voltar" id="btn-prev-epi" style="flex:1; margin-right:5px; display:none;">⏮ ANTERIOR</button>
+                    <button class="btn-voltar" id="btn-next-epi" style="flex:1; margin-right:5px; display:none;">PRÓXIMO ⏭</button>
+                    <button class="btn-voltar" onclick="fecharPlayer()" style="background:var(--red)">FECHAR</button>
+                </div>
+                <div id="lista-epis-inline" class="list-epis-player"></div>
+            </div>
+            <div style="padding: 15px 15px 0 15px;"><input type="text" id="busca-user" placeholder="🔍 Buscar títulos..."></div>
+            <div id="conteudo-home"></div>
+            <div id="view-detalhe" style="display: none;">
+                <button id="btn-back-main" class="btn-voltar" style="margin: 0 15px 10px; visibility: hidden;" onclick="this.parentElement.style.display='none'; document.getElementById('conteudo-home').style.display='block'; this.style.visibility='hidden';">← VOLTAR</button>
+                <h2 id="titulo-categoria-aberta" style="margin: 0 15px 10px; font-size: 18px; color: var(--red);"></h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 12px; padding: 15px;" id="grid-itens"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-perfil" class="modal">
+        <div class="container-box" style="margin-top: 15vh; text-align: center;">
+            <h2 style="color:var(--red);">MEU PERFIL</h2>
+            <div id="perfil-nome-exibicao" style="margin-bottom: 15px; font-weight: bold; font-size: 18px; color: #fff;"></div>
+            <p style="font-size: 13px; color: #888;">Altere sua senha de acesso</p>
+            <input type="password" id="perfil-senha-atual" placeholder="Senha Atual">
+            <input type="password" id="perfil-nova-senha" placeholder="Nova Senha">
+            <input type="password" id="perfil-confirmar-senha" placeholder="Confirmar Nova Senha">
+            <button class="btn-red" id="btn-atualizar-senha" style="width: 100%;">SALVAR NOVA SENHA</button>
+            <button class="btn-voltar" onclick="document.getElementById('modal-perfil').style.display='none'" style="width:100%; margin-top:10px;">VOLTAR</button>
+        </div>
+    </div>
+
+    <div id="modal-info">
+        <div class="info-capa-bg" id="info-bg">
+             <button class="btn-voltar" onclick="document.getElementById('modal-info').style.display='none'" style="position:absolute; top:20px; left:20px; background: rgba(0,0,0,0.6);">✕</button>
+        </div>
+        <div class="info-content">
+            <div class="info-titulo" id="info-titulo">Título</div>
+            <div class="info-sinopse" id="info-sinopse">Sinopse aqui...</div>
+            <button class="btn-red" id="btn-info-play" style="width:100%; padding: 15px; font-size: 16px; margin-bottom: 10px;">▶ ASSISTIR AGORA</button>
+            <button class="btn-voltar" onclick="document.getElementById('modal-info').style.display='none'" style="width:100%; padding: 15px; background:#333;">VOLTAR</button>
+        </div>
+    </div>
+
+    <div id="admin-panel" style="display: none; padding-top: 20px; background: #000; min-height: 100vh;">
+        <div style="padding: 0 15px;"><button class="btn-voltar" id="btn-voltar-adm">← VOLTAR AO APP</button></div>
+        <div class="container-box">
+            <h3>Gerenciar Conteúdo</h3>
+            <input type="hidden" id="edit-id-cont"><input id="c-nome" placeholder="Nome">
+            <select id="c-tipo"><option value="tv">TV / CANAIS</option><option value="filme">FILME</option><option value="serie">SÉRIE</option></select>
+            <input id="c-cat" placeholder="Categoria">
+            <textarea id="c-sinopse" placeholder="Sinopse do Conteúdo" rows="3"></textarea>
+            <textarea id="c-links" placeholder="Links (um por linha)" rows="2"></textarea>
+            <input id="c-capa" placeholder="URL da Capa">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-red" id="btn-salvar-db" style="flex:2">SALVAR / ATUALIZAR</button>
+                <button class="btn-red" id="btn-limpar-db" style="background:#007bff; flex:1">NOVO</button>
+            </div>
+            <input type="text" id="filtro-adm-conteudo" placeholder="🔍 Filtrar..." style="margin-top:20px;">
+            <div class="tabela-container"><table><thead><tr><th>NOME</th><th>CATEGORIA</th><th>AÇÃO</th></tr></thead><tbody id="tabela-conteudo-adm"></tbody></table></div>
+        </div>
+        <div class="container-box">
+            <h3>Gerenciar Usuários</h3>
+            <input type="hidden" id="edit-id-user"><input id="u-nome" placeholder="Login"><input id="u-pass" placeholder="Senha">
+            <div style="display: flex; gap: 10px;"><button class="btn-red" id="btn-salvar-user" style="background: #28a745; flex:1">SALVAR</button><button class="btn-red" id="btn-novo-user" style="background: #007bff; flex:1">TESTE 1H</button></div>
+            <div class="tabela-container" style="margin-top: 15px;"><table><thead><tr><th>LOGIN</th><th>T / VENCIMENTO</th><th>AÇÃO</th></tr></thead><tbody id="lista-user-adm"></tbody></table></div>
+        </div>
+    </div>
+
+    <div id="modal-temp" class="modal"><h2 id="temp-titulo" style="color:var(--red);"></h2><div id="temp-lista"></div><button class="btn-voltar" onclick="this.parentElement.style.display='none'" style="width:100%; margin-top:20px;">FECHAR</button></div>
+    <div id="modal-epis" class="modal" style="z-index: 2001;"><h2 id="epis-titulo" style="color:var(--red);"></h2><div id="epis-lista"></div><button class="btn-voltar" onclick="this.parentElement.style.display='none'" style="width:100%; margin-top:20px;">VOLTAR</button></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, push, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBGOGCL_TYyNrhuxS9jIa7k8Y-IyVr4ggo", databaseURL: "https://cloneflix-16f9c-default-rtdb.firebaseio.com" };
+        const app = initializeApp(firebaseConfig); const db = getDatabase(app);
+        let bancoDados = []; const video = document.getElementById('main-video');
+        let playlistAtual = []; let indexEpiAtual = 0; let linkAtual = ""; let hls = null;
+        let tipoAtualAberto = null;
+        let idUsuarioLogado = null;
+        let nomeUsuarioLogado = "";
+        const idSessaoLocal = Math.random().toString(36).substring(2, 15);
+
+        const tratarLink = (linha, index) => {
+            if (linha.includes('|')) {
+                const partes = linha.split('|');
+                return { nome: partes[0].trim(), url: partes[1].trim() };
+            }
+            return { nome: `Episódio ${index + 1}`, url: linha.trim() };
+        };
+
+        function deveMostrarContinuar(url) {
+            const salvo = localStorage.getItem('time_' + btoa(url));
+            const total = localStorage.getItem('total_' + btoa(url));
+            if (!salvo || parseFloat(salvo) <= 5) return false;
+            if (total) {
+                const perc = (parseFloat(salvo) / parseFloat(total)) * 100;
+                if (perc >= 95) return false; 
+            }
+            return true;
+        }
+
+        document.getElementById('btn-entrar').onclick = async () => {
+            const u = document.getElementById('u-l').value; const p = document.getElementById('p-l').value;
+            if(u === "Rhuan" && p === "2026") { 
+                document.getElementById('display-validade').innerHTML = "MODO<br>ADMIN";
+                idUsuarioLogado = "admin";
+                nomeUsuarioLogado = "ADMINISTRADOR";
+                logar(true); 
+                return; 
+            }
+            const snap = await get(ref(db, 'usuarios'));
+            let enc = null; snap.forEach(c => { const d = c.val(); if(d.user === u && d.pass === p) enc = {...d, id: c.key}; });
+            if(enc) {
+                if(enc.suspenso) { alert("Sua conta está suspensa!"); return; }
+                if(enc.expira !== 999 && enc.expira < Date.now()) { alert("Seu acesso expirou!"); return; }
+                
+                const sessoesRef = ref(db, `usuarios/${enc.id}/sessoes`);
+                const sessoesSnap = await get(sessoesRef);
+                let sessoes = sessoesSnap.val() || {};
+                let limite = enc.telas || 1;
+
+                let idsAtivos = Object.keys(sessoes).sort((a,b) => sessoes[a] - sessoes[b]);
+                if(idsAtivos.length >= limite && !idsAtivos.includes(idSessaoLocal)) {
+                    const antiga = idsAtivos[0];
+                    await remove(ref(db, `usuarios/${enc.id}/sessoes/${antiga}`));
+                    delete sessoes[antiga];
+                }
+
+                sessoes[idSessaoLocal] = { time: Date.now(), online: false };
+                await update(sessoesRef, sessoes);
+                
+                monitorarSessao(enc.id);
+                window.onbeforeunload = () => { remove(ref(db, `usuarios/${enc.id}/sessoes/${idSessaoLocal}`)); };
+
+                let dataVal = (enc.expira === 999) ? "ACESSO<br>VITALÍCIO" : `VENCIMENTO:<br>${new Date(enc.expira).toLocaleString('pt-br', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+                document.getElementById('display-validade').innerHTML = dataVal;
+                idUsuarioLogado = enc.id;
+                nomeUsuarioLogado = enc.user;
+                logar(false);
+            } else { alert("Usuário ou senha incorretos!"); }
+        };
+
+        function monitorarSessao(userId) {
+            onValue(ref(db, `usuarios/${userId}/sessoes/${idSessaoLocal}`), (snap) => {
+                if (!snap.exists()) {
+                    document.getElementById('main-content').style.display = 'none';
+                    document.getElementById('tela-bloqueio').style.display = 'flex';
+                    video.pause();
+                }
+            });
+        }
+
+        window.abrirPerfil = () => {
+            if(idUsuarioLogado === "admin") { alert("Painel ADM."); return; }
+            document.getElementById('perfil-nome-exibicao').innerText = `USUÁRIO: ${nomeUsuarioLogado}`;
+            document.getElementById('modal-perfil').style.display = 'block';
+        };
+
+        document.getElementById('btn-atualizar-senha').onclick = async () => {
+            const senhaAtual = document.getElementById('perfil-senha-atual').value;
+            const nova = document.getElementById('perfil-nova-senha').value;
+            const confirmar = document.getElementById('perfil-confirmar-senha').value;
+            if(!senhaAtual || !nova || !confirmar) { alert("Preencha todos os campos."); return; }
+            if(nova !== confirmar) { alert("As novas senhas não coincidem!"); return; }
+            const userSnap = await get(ref(db, `usuarios/${idUsuarioLogado}`));
+            const dadosUser = userSnap.val();
+            if(senhaAtual !== dadosUser.pass) { alert("A senha atual está incorreta!"); } 
+            else { update(ref(db, `usuarios/${idUsuarioLogado}`), { pass: nova }).then(() => { alert("Senha alterada!"); document.getElementById('modal-perfil').style.display = 'none'; }); }
+        };
+
+        function logar(adm) {
+            document.getElementById('login-container').style.display='none';
+            document.getElementById('main-content').style.display='block';
+            document.getElementById('portal-inicio').style.display='block';
+            if(adm) document.getElementById('b-a').style.display='block';
+            carregarTudo();
+        }
+
+        window.filtrarPortal = (tipo) => {
+            tipoAtualAberto = tipo;
+            document.getElementById('portal-inicio').style.display = 'none';
+            document.getElementById('conteudo-app').style.display = 'block';
+            document.getElementById('btn-portal-back').style.display = 'block';
+            renderHome(tipo);
+        };
+
+        window.voltarAoPortal = () => {
+            if (idUsuarioLogado && idUsuarioLogado !== "admin") {
+                update(ref(db, `usuarios/${idUsuarioLogado}/sessoes/${idSessaoLocal}`), { online: false, titulo: null });
+            }
+            document.getElementById('portal-inicio').style.display = 'block';
+            document.getElementById('conteudo-app').style.display = 'none';
+            document.getElementById('btn-portal-back').style.display = 'none';
+            document.getElementById('player-area').style.display = 'none';
+            video.pause();
+        };
+
+        function carregarTudo() {
+            onValue(ref(db, 'conteudo'), (s) => { 
+                bancoDados = []; s.forEach(it => { bancoDados.push({...it.val(), id: it.key}); }); 
+                renderADMConteudo(); 
+            });
+            onValue(ref(db, 'usuarios'), (s) => {
+                const list = document.getElementById('lista-user-adm'); if(!list) return; list.innerHTML = "";
+                s.forEach(it => {
+                    const u = it.val();
+                    const corStatus = u.suspenso ? '#dc3545' : '#28a745';
+                    let vTxt = (u.expira === 999) ? "VITALÍCIO" : new Date(u.expira).toLocaleDateString('pt-br');
+                    
+                    let statusLabel = '<span class="status-dot" style="background:#444"></span> Offline';
+                    if (u.sessoes) {
+                        const sessoes = Object.values(u.sessoes);
+                        const ativa = sessoes.find(s => s.online === true);
+                        if (ativa) statusLabel = `<span class="status-dot" style="background:#28a745"></span> <span style="color:#28a745">Online</span><br><small style="color:var(--yellow); font-size:9px;">${ativa.titulo || ''}</small>`;
+                    }
+
+                    list.innerHTML += `<tr><td>${u.user}<br>${statusLabel}</td><td><span style="color:var(--yellow)">[${u.telas || 1}T]</span> ${vTxt}</td><td>
+                        <button class="btn-mini" style="background:${corStatus}" onclick="window.toggleU('${it.key}', ${u.suspenso})">SUSP.</button>
+                        <button class="btn-mini" style="background:#ffc107; color:#000" onclick="window.addDiasCustom('${it.key}', ${u.expira})">+D</button>
+                        <button class="btn-mini" style="background:#6f42c1" onclick="window.addTelasCustom('${it.key}', ${u.telas || 1})">+T</button>
+                        <button class="btn-mini" style="background:#007bff" onclick="window.editU('${it.key}')">ED</button>
+                        <button class="btn-mini" style="background:#dc3545" onclick="window.delU('${it.key}')">X</button>
+                    </td></tr>`;
+                });
+            });
+        }
+
+        video.ontimeupdate = () => { 
+            if(linkAtual && video.currentTime > 5) {
+                localStorage.setItem('time_' + btoa(linkAtual), video.currentTime);
+                if(video.duration) localStorage.setItem('total_' + btoa(linkAtual), video.duration);
+            }
+        };
+
+        window.fecharPlayer = () => {
+            if (idUsuarioLogado && idUsuarioLogado !== "admin") {
+                update(ref(db, `usuarios/${idUsuarioLogado}/sessoes/${idSessaoLocal}`), { online: false, titulo: null });
+            }
+            document.getElementById('player-area').style.display = 'none';
+            video.pause();
+            renderHome(tipoAtualAberto);
+        };
+
+        window.iniciarPlayer = (urlBruta, nome, listaEpis = [], index = 0) => {
+            const dadosEpi = tratarLink(urlBruta, index);
+            linkAtual = dadosEpi.url;
+            if (idUsuarioLogado && idUsuarioLogado !== "admin") {
+                update(ref(db, `usuarios/${idUsuarioLogado}/sessoes/${idSessaoLocal}`), { online: true, titulo: nome });
+            }
+            playlistAtual = listaEpis; indexEpiAtual = index;
+            document.getElementById('player-area').style.display = 'block';
+            const listDiv = document.getElementById('lista-epis-inline');
+            if(playlistAtual.length > 1) { listDiv.style.display = 'block'; document.getElementById('btn-prev-epi').style.display = 'block'; document.getElementById('btn-next-epi').style.display = 'block'; renderListaInline(); } 
+            else { listDiv.style.display = 'none'; document.getElementById('btn-prev-epi').style.display = 'none'; document.getElementById('btn-next-epi').style.display = 'none'; }
+            if(hls) { hls.destroy(); hls = null; }
+            if(Hls.isSupported()){ hls = new Hls(); hls.loadSource(linkAtual); hls.attachMedia(video); hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); } 
+            else { video.src = linkAtual; video.play(); iniciarVideo(); }
+            window.scrollTo(0,0);
+        };
+
+        function iniciarVideo() {
+            const salvo = localStorage.getItem('time_' + btoa(linkAtual));
+            if(salvo && parseFloat(salvo) > 5) { if(confirm("Continuar de onde parou?")) { video.currentTime = parseFloat(salvo); } }
+            video.play();
+        }
+
+        document.getElementById('btn-next-epi').onclick = () => { if(indexEpiAtual < playlistAtual.length - 1) { iniciarPlayer(playlistAtual[indexEpiAtual + 1], "Série", playlistAtual, indexEpiAtual + 1); } };
+        document.getElementById('btn-prev-epi').onclick = () => { if(indexEpiAtual > 0) { iniciarPlayer(playlistAtual[indexEpiAtual - 1], "Série", playlistAtual, indexEpiAtual - 1); } };
+
+        function renderListaInline() {
+            const cont = document.getElementById('lista-epis-inline');
+            cont.innerHTML = `<div style="color:var(--red); font-size:11px; margin-bottom:8px; font-weight:bold;">EPISÓDIOS:</div>`;
+            playlistAtual.forEach((urlLinha, i) => {
+                const epi = tratarLink(urlLinha, i);
+                const tempo = localStorage.getItem('time_' + btoa(epi.url));
+                const item = document.createElement('div');
+                item.className = `epi-item-player ${i === indexEpiAtual ? 'active' : ''} ${tempo > 5 ? 'assistido' : ''}`;
+                item.innerHTML = `<span>${epi.nome}</span> <span>${i === indexEpiAtual ? '▶ TOCANDO' : (tempo > 5 ? '● RECOMEÇAR' : '')}</span>`;
+                item.onclick = () => iniciarPlayer(urlLinha, "Série", playlistAtual, i);
+                cont.appendChild(item);
+            });
+        }
+
+        function renderHome(filtroTipo = null) {
+            const container = document.getElementById('conteudo-home'); container.innerHTML = "";
+            const tipos = [{ id: 'tv', label: 'TV / Canais' }, { id: 'filme', label: 'Filmes' }, { id: 'serie', label: 'Séries' }];
+            tipos.forEach(t => {
+                if(filtroTipo && t.id !== filtroTipo) return;
+                const itensTipo = bancoDados.filter(it => it.tipo === t.id);
+                if(itensTipo.length > 0) {
+                    const div = document.createElement('div'); div.className = 'section-divider'; div.innerText = t.label; container.appendChild(div);
+                    const cats = [...new Set(itensTipo.map(b => b.categoria))].sort();
+                    cats.forEach(cat => {
+                        const itens = itensTipo.filter(it => it.categoria === cat);
+                        const row = document.createElement('div'); row.className = 'row';
+                        row.innerHTML = `<div class="row-header"><span class="row-title">${cat}</span><span style="color:var(--red); font-size:12px;" onclick="abrirCategoria('${cat}', '${t.id}')">Ver Tudo ❯</span></div><div class="row-posters"></div>`;
+                        container.appendChild(row);
+                        const posterRow = row.querySelector('.row-posters');
+                        const nomesVistos = new Set();
+                        itens.forEach(it => {
+                            if(it.tipo === 'serie') {
+                                let base = it.nome.split(" -")[0].trim();
+                                if(!nomesVistos.has(base)) { nomesVistos.add(base); const sComp = itens.filter(s => s.nome.startsWith(base)); criarCard(it, sComp, true, posterRow); }
+                            } else { criarCard(it, it.url, false, posterRow); }
+                        });
+                    });
+                }
+            });
+        }
+
+        function criarCard(itemData, dados, isSerie, local) {
+            const card = document.createElement('div');
+            let hasProgress = false;
+            if(isSerie) { dados.forEach(temp => { temp.url.split('\n').forEach((linha, idx) => { const epi = tratarLink(linha, idx); if(deveMostrarContinuar(epi.url)) hasProgress = true; }); }); } 
+            else { const epi = tratarLink(itemData.url, 0); if(deveMostrarContinuar(epi.url)) hasProgress = true; }
+            card.className = `card ${hasProgress ? 'em-andamento' : ''}`;
+            card.innerHTML = `${hasProgress ? '<div class="badge-continuar">Continuar</div>' : ''}<img src="${itemData.capa}"><div class="card-title">${isSerie ? itemData.nome.split(" -")[0].trim() : itemData.nome}</div>`;
+            card.onclick = () => abrirInfo(itemData, dados, isSerie);
+            local.appendChild(card);
+        }
+
+        // --- ATUALIZAÇÃO DA FUNÇÃO ABRIR INFO PARA CARREGAR CAPA ---
+        window.abrirInfo = (item, dados, isSerie) => {
+            const modal = document.getElementById('modal-info');
+            const infoBg = document.getElementById('info-bg');
+            
+            // Correção aqui: Adicionado aspas para garantir o carregamento da URL no background
+            if (item.capa) {
+                infoBg.style.backgroundImage = `url("${item.capa}")`;
+            } else {
+                infoBg.style.background = "#141414";
+            }
+
+            document.getElementById('info-titulo').innerText = isSerie ? item.nome.split(" -")[0].trim() : item.nome;
+            document.getElementById('info-sinopse').innerText = item.sinopse || "Nenhuma sinopse disponível.";
+            
+            const btnPlay = document.getElementById('btn-info-play');
+            btnPlay.onclick = () => { 
+                modal.style.display = 'none'; 
+                isSerie ? abrirTemporadas(item.nome.split(" -")[0].trim(), dados) : iniciarPlayer(dados, item.nome); 
+            };
+            modal.style.display = 'block';
+        };
+
+        window.abrirTemporadas = (nome, lista) => {
+            document.getElementById('modal-temp').style.display = 'block';
+            document.getElementById('temp-titulo').innerText = nome;
+            const cont = document.getElementById('temp-lista'); cont.innerHTML = "";
+            lista.forEach(it => {
+                let tempProgress = false;
+                it.url.split('\n').forEach((linha, idx) => { const epi = tratarLink(linha, idx); if(deveMostrarContinuar(epi.url)) tempProgress = true; });
+                const d = document.createElement('div'); d.className = `folder-item ${tempProgress ? 'progresso-yellow' : ''}`;
+                d.innerHTML = `<span>${it.nome}</span><span>❯</span>`;
+                d.onclick = () => abrirEpisodios(it.nome, it.url);
+                cont.appendChild(d);
+            });
+        };
+
+        function abrirEpisodios(nome, urls) {
+            document.getElementById('modal-epis').style.display = 'block';
+            document.getElementById('epis-titulo').innerText = nome;
+            const cont = document.getElementById('epis-lista'); cont.innerHTML = "";
+            const listaLinhas = urls.split('\n').filter(l => l.trim());
+            listaLinhas.forEach((linha, i) => {
+                const epi = tratarLink(linha, i);
+                const showProg = deveMostrarContinuar(epi.url);
+                const d = document.createElement('div'); 
+                d.className = `folder-item ${showProg ? 'progresso-yellow' : ''}`;
+                d.innerHTML = `<span>${epi.nome}</span><span>${showProg ? '🕒' : '▶'}</span>`;
+                d.onclick = () => { iniciarPlayer(linha, nome, listaLinhas, i); document.getElementById('modal-epis').style.display='none'; document.getElementById('modal-temp').style.display='none'; };
+                cont.appendChild(d);
+            });
+        }
+
+        window.abrirCategoria = (cat, tipo) => {
+            document.getElementById('conteudo-home').style.display = 'none';
+            document.getElementById('view-detalhe').style.display = 'block';
+            document.getElementById('btn-back-main').style.visibility = 'visible';
+            document.getElementById('titulo-categoria-aberta').innerText = cat;
+            const grid = document.getElementById('grid-itens'); grid.innerHTML = "";
+            const itensFiltrados = bancoDados.filter(it => it.categoria === cat && it.tipo === tipo);
+            const nomesVistos = new Set();
+            itensFiltrados.forEach(it => {
+                if(it.tipo === 'serie') {
+                    let base = it.nome.split(" -")[0].trim();
+                    if(!nomesVistos.has(base)) { nomesVistos.add(base); const sComp = itensFiltrados.filter(s => s.nome.startsWith(base)); criarCard(it, sComp, true, grid); }
+                } else { criarCard(it, it.url, false, grid); }
+            });
+        };
+
+        window.toggleU = (id, s) => update(ref(db, `usuarios/${id}`), { suspenso: !s });
+        window.delU = (id) => confirm("Excluir?") && remove(ref(db, `usuarios/${id}`));
+        window.editU = async (id) => { const snap = await get(ref(db, `usuarios/${id}`)); const d = snap.val(); document.getElementById('edit-id-user').value = id; document.getElementById('u-nome').value = d.user; document.getElementById('u-pass').value = d.pass; };
+        document.getElementById('btn-salvar-user').onclick = () => { const id = document.getElementById('edit-id-user').value; if(id) update(ref(db, `usuarios/${id}`), { user: document.getElementById('u-nome').value, pass: document.getElementById('u-pass').value }); };
+        document.getElementById('btn-novo-user').onclick = () => { const u = document.getElementById('u-nome').value, p = document.getElementById('u-pass').value; if(u && p) push(ref(db, 'usuarios'), { user: u, pass: p, expira: Date.now() + 3600000, suspenso: false, telas: 1 }); };
+        window.addDiasCustom = (id, expAtual) => { const dias = prompt("Dias:"); if(dias) { if(dias === "999") update(ref(db, `usuarios/${id}`), { expira: 999 }); else update(ref(db, `usuarios/${id}`), { expira: ((expAtual < Date.now() || expAtual === 999) ? Date.now() : expAtual) + (parseInt(dias) * 86400000) }); } };
+        window.addTelasCustom = (id, atual) => { const n = prompt("Limite de telas:", atual || 1); if(n) update(ref(db, `usuarios/${id}`), { telas: parseInt(n) }); };
+
+        function renderADMConteudo(termo = "") {
+            const list = document.getElementById('tabela-conteudo-adm'); if(!list) return; list.innerHTML = "";
+            bancoDados.filter(it => it.nome.toLowerCase().includes(termo.toLowerCase())).forEach(d => {
+                list.innerHTML += `<tr><td>${d.nome}</td><td style="color:var(--red)">${d.categoria}</td><td><button class="btn-mini" style="background:#007bff" onclick="window.editC('${d.id}')">ED</button><button class="btn-mini" style="background:#dc3545" onclick="window.delC('${d.id}')">X</button></td></tr>`;
+            });
+        }
+        window.editC = (id) => { const d = bancoDados.find(b => b.id === id); document.getElementById('edit-id-cont').value = id; document.getElementById('c-nome').value = d.nome; document.getElementById('c-tipo').value = d.tipo; document.getElementById('c-cat').value = d.categoria; document.getElementById('c-sinopse').value = d.sinopse || ""; document.getElementById('c-links').value = d.url; document.getElementById('c-capa').value = d.capa; window.scrollTo(0,0); };
+        document.getElementById('btn-limpar-db').onclick = () => { document.getElementById('edit-id-cont').value = ""; document.getElementById('c-nome').value = ""; document.getElementById('c-cat').value = ""; document.getElementById('c-sinopse').value = ""; document.getElementById('c-links').value = ""; document.getElementById('c-capa').value = ""; alert("Limpo!"); };
+        document.getElementById('btn-salvar-db').onclick = () => { const id = document.getElementById('edit-id-cont').value; const obj = { nome: document.getElementById('c-nome').value, tipo: document.getElementById('c-tipo').value, categoria: document.getElementById('c-cat').value.toUpperCase(), sinopse: document.getElementById('c-sinopse').value, url: document.getElementById('c-links').value, capa: document.getElementById('c-capa').value }; id ? update(ref(db, `conteudo/${id}`), obj) : push(ref(db, 'conteudo'), obj); alert("Sucesso!"); };
+        window.delC = (id) => confirm("Excluir?") && remove(ref(db, `conteudo/${id}`));
+        document.getElementById('filtro-adm-conteudo').onkeyup = (e) => renderADMConteudo(e.target.value);
+        document.getElementById('busca-user').onkeyup = (e) => { const t = e.target.value.toLowerCase(); const home = document.getElementById('conteudo-home'), detail = document.getElementById('view-detalhe'), grid = document.getElementById('grid-itens'); if(t.length > 0) { home.style.display = 'none'; detail.style.display = 'block'; grid.innerHTML = ""; bancoDados.filter(it => it.nome.toLowerCase().includes(t)).forEach(it => criarCard(it, it.url, it.tipo === 'serie', grid)); } else { home.style.display = 'block'; detail.style.display = 'none'; } };
+        document.getElementById('b-a').onclick = () => { document.getElementById('main-content').style.display='none'; document.getElementById('admin-panel').style.display='block'; };
+        document.getElementById('btn-voltar-adm').onclick = () => { document.getElementById('admin-panel').style.display='none'; document.getElementById('main-content').style.display='block'; };
+    </script>
+</body>
+</html>
