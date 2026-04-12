@@ -193,8 +193,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, push, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        const firebaseConfig = { apiKey: "AIzaSyBGOGCL_TYyNrhuxS9jIa7k8Y-IyVr4ggo", databaseURL: "https://cloneflix-16f9c-default-rtdb.firebaseio.com" };
-        const app = initializeApp(firebaseConfig); const db = getDatabase(app);
+        // CONFIGURAÇÃO DO FIREBASE (Autorizada para a Vercel)
+        const firebaseConfig = { 
+            apiKey: "AIzaSyBGOGCL_TYyNrhuxS9jIa7k8Y-IyVr4ggo", 
+            databaseURL: "https://cloneflix-16f9c-default-rtdb.firebaseio.com" 
+        };
+        
+        const app = initializeApp(firebaseConfig); 
+        const db = getDatabase(app);
+        
         let bancoDados = []; const video = document.getElementById('main-video');
         let playlistAtual = []; let indexEpiAtual = 0; let linkAtual = ""; let hls = null;
         let tipoAtualAberto = null;
@@ -202,6 +209,7 @@
         let nomeUsuarioLogado = "";
         const idSessaoLocal = Math.random().toString(36).substring(2, 15);
 
+        // Funções auxiliares mantidas para funcionamento do sistema
         const tratarLink = (linha, index) => {
             if (linha.includes('|')) {
                 const partes = linha.split('|');
@@ -221,6 +229,7 @@
             return true;
         }
 
+        // LÓGICA DE LOGIN COM SUPORTE A DOMÍNIO AUTORIZADO
         document.getElementById('btn-entrar').onclick = async () => {
             const u = document.getElementById('u-l').value; const p = document.getElementById('p-l').value;
             if(u === "Rhuan" && p === "2026") { 
@@ -262,6 +271,7 @@
             } else { alert("Usuário ou senha incorretos!"); }
         };
 
+        // Funções de monitoramento e UI
         function monitorarSessao(userId) {
             onValue(ref(db, `usuarios/${userId}/sessoes/${idSessaoLocal}`), (snap) => {
                 if (!snap.exists()) {
@@ -276,4 +286,249 @@
             if(idUsuarioLogado === "admin") { alert("Painel ADM."); return; }
             document.getElementById('perfil-nome-exibicao').innerText = `USUÁRIO: ${nomeUsuarioLogado}`;
             document.getElementById('modal-perfil').style.display = 'block';
-     
+        };
+
+        document.getElementById('btn-atualizar-senha').onclick = async () => {
+            const senhaAtual = document.getElementById('perfil-senha-atual').value;
+            const nova = document.getElementById('perfil-nova-senha').value;
+            const confirmar = document.getElementById('perfil-confirmar-senha').value;
+            if(!senhaAtual || !nova || !confirmar) { alert("Preencha todos os campos."); return; }
+            if(nova !== confirmar) { alert("As novas senhas não coincidem!"); return; }
+            const userSnap = await get(ref(db, `usuarios/${idUsuarioLogado}`));
+            const dadosUser = userSnap.val();
+            if(senhaAtual !== dadosUser.pass) { alert("A senha atual está incorreta!"); } 
+            else { update(ref(db, `usuarios/${idUsuarioLogado}`), { pass: nova }).then(() => { alert("Senha alterada!"); document.getElementById('modal-perfil').style.display = 'none'; }); }
+        };
+
+        function logar(adm) {
+            document.getElementById('login-container').style.display='none';
+            document.getElementById('main-content').style.display='block';
+            document.getElementById('portal-inicio').style.display='block';
+            if(adm) document.getElementById('b-a').style.display='block';
+            carregarTudo();
+        }
+
+        window.filtrarPortal = (tipo) => {
+            tipoAtualAberto = tipo;
+            document.getElementById('portal-inicio').style.display = 'none';
+            document.getElementById('conteudo-app').style.display = 'block';
+            document.getElementById('btn-portal-back').style.display = 'block';
+            renderHome(tipo);
+        };
+
+        window.voltarAoPortal = () => {
+            if (idUsuarioLogado && idUsuarioLogado !== "admin") {
+                update(ref(db, `usuarios/${idUsuarioLogado}/sessoes/${idSessaoLocal}`), { online: false, titulo: null });
+            }
+            document.getElementById('portal-inicio').style.display = 'block';
+            document.getElementById('conteudo-app').style.display = 'none';
+            document.getElementById('btn-portal-back').style.display = 'none';
+            document.getElementById('player-area').style.display = 'none';
+            video.pause();
+        };
+
+        function carregarTudo() {
+            onValue(ref(db, 'conteudo'), (s) => { 
+                bancoDados = []; s.forEach(it => { bancoDados.push({...it.val(), id: it.key}); }); 
+                renderADMConteudo(); 
+            });
+            onValue(ref(db, 'usuarios'), (s) => {
+                const list = document.getElementById('lista-user-adm'); if(!list) return; list.innerHTML = "";
+                s.forEach(it => {
+                    const u = it.val();
+                    const corStatus = u.suspenso ? '#dc3545' : '#28a745';
+                    let vTxt = (u.expira === 999) ? "VITALÍCIO" : new Date(u.expira).toLocaleDateString('pt-br');
+                    
+                    let statusLabel = '<span class="status-dot" style="background:#444"></span> Offline';
+                    if (u.sessoes) {
+                        const sessoes = Object.values(u.sessoes);
+                        const ativa = sessoes.find(s => s.online === true);
+                        if (ativa) statusLabel = `<span class="status-dot" style="background:#28a745"></span> <span style="color:#28a745">Online</span><br><small style="color:var(--yellow); font-size:9px;">${ativa.titulo || ''}</small>`;
+                    }
+
+                    list.innerHTML += `<tr><td>${u.user}<br>${statusLabel}</td><td><span style="color:var(--yellow)">[${u.telas || 1}T]</span> ${vTxt}</td><td>
+                        <button class="btn-mini" style="background:${corStatus}" onclick="window.toggleU('${it.key}', ${u.suspenso})">SUSP.</button>
+                        <button class="btn-mini" style="background:#ffc107; color:#000" onclick="window.addDiasCustom('${it.key}', ${u.expira})">+D</button>
+                        <button class="btn-mini" style="background:#6f42c1" onclick="window.addTelasCustom('${it.key}', ${u.telas || 1})">+T</button>
+                        <button class="btn-mini" style="background:#007bff" onclick="window.editU('${it.key}')">ED</button>
+                        <button class="btn-mini" style="background:#dc3545" onclick="window.delU('${it.key}')">X</button>
+                    </td></tr>`;
+                });
+            });
+        }
+
+        video.ontimeupdate = () => { 
+            if(linkAtual && video.currentTime > 5) {
+                localStorage.setItem('time_' + btoa(linkAtual), video.currentTime);
+                if(video.duration) localStorage.setItem('total_' + btoa(linkAtual), video.duration);
+            }
+        };
+
+        window.fecharPlayer = () => {
+            if (idUsuarioLogado && idUsuarioLogado !== "admin") {
+                update(ref(db, `usuarios/${idUsuarioLogado}/sessoes/${idSessaoLocal}`), { online: false, titulo: null });
+            }
+            document.getElementById('player-area').style.display = 'none';
+            video.pause();
+            renderHome(tipoAtualAberto);
+        };
+
+        window.iniciarPlayer = (urlBruta, nome, listaEpis = [], index = 0) => {
+            const dadosEpi = tratarLink(urlBruta, index);
+            linkAtual = dadosEpi.url;
+            if (idUsuarioLogado && idUsuarioLogado !== "admin") {
+                update(ref(db, `usuarios/${idUsuarioLogado}/sessoes/${idSessaoLocal}`), { online: true, titulo: nome });
+            }
+            playlistAtual = listaEpis; indexEpiAtual = index;
+            document.getElementById('player-area').style.display = 'block';
+            const listDiv = document.getElementById('lista-epis-inline');
+            if(playlistAtual.length > 1) { listDiv.style.display = 'block'; document.getElementById('btn-prev-epi').style.display = 'block'; document.getElementById('btn-next-epi').style.display = 'block'; renderListaInline(); } 
+            else { listDiv.style.display = 'none'; document.getElementById('btn-prev-epi').style.display = 'none'; document.getElementById('btn-next-epi').style.display = 'none'; }
+            if(hls) { hls.destroy(); hls = null; }
+            if(Hls.isSupported()){ hls = new Hls(); hls.loadSource(linkAtual); hls.attachMedia(video); hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); } 
+            else { video.src = linkAtual; video.play(); iniciarVideo(); }
+            window.scrollTo(0,0);
+        };
+
+        function iniciarVideo() {
+            const salvo = localStorage.getItem('time_' + btoa(linkAtual));
+            if(salvo && parseFloat(salvo) > 5) { if(confirm("Continuar de onde parou?")) { video.currentTime = parseFloat(salvo); } }
+            video.play();
+        }
+
+        document.getElementById('btn-next-epi').onclick = () => { if(indexEpiAtual < playlistAtual.length - 1) { iniciarPlayer(playlistAtual[indexEpiAtual + 1], "Série", playlistAtual, indexEpiAtual + 1); } };
+        document.getElementById('btn-prev-epi').onclick = () => { if(indexEpiAtual > 0) { iniciarPlayer(playlistAtual[indexEpiAtual - 1], "Série", playlistAtual, indexEpiAtual - 1); } };
+
+        function renderListaInline() {
+            const cont = document.getElementById('lista-epis-inline');
+            cont.innerHTML = `<div style="color:var(--red); font-size:11px; margin-bottom:8px; font-weight:bold;">EPISÓDIOS:</div>`;
+            playlistAtual.forEach((urlLinha, i) => {
+                const epi = tratarLink(urlLinha, i);
+                const tempo = localStorage.getItem('time_' + btoa(epi.url));
+                const item = document.createElement('div');
+                item.className = `epi-item-player ${i === indexEpiAtual ? 'active' : ''} ${tempo > 5 ? 'assistido' : ''}`;
+                item.innerHTML = `<span>${epi.nome}</span> <span>${i === indexEpiAtual ? '▶ TOCANDO' : (tempo > 5 ? '● RECOMEÇAR' : '')}</span>`;
+                item.onclick = () => iniciarPlayer(urlLinha, "Série", playlistAtual, i);
+                cont.appendChild(item);
+            });
+        }
+
+        function renderHome(filtroTipo = null) {
+            const container = document.getElementById('conteudo-home'); container.innerHTML = "";
+            const tipos = [{ id: 'tv', label: 'TV / Canais' }, { id: 'filme', label: 'Filmes' }, { id: 'serie', label: 'Séries' }];
+            tipos.forEach(t => {
+                if(filtroTipo && t.id !== filtroTipo) return;
+                const itensTipo = bancoDados.filter(it => it.tipo === t.id);
+                if(itensTipo.length > 0) {
+                    const div = document.createElement('div'); div.className = 'section-divider'; div.innerText = t.label; container.appendChild(div);
+                    const cats = [...new Set(itensTipo.map(b => b.categoria))].sort();
+                    cats.forEach(cat => {
+                        const itens = itensTipo.filter(it => it.categoria === cat);
+                        const row = document.createElement('div'); row.className = 'row';
+                        row.innerHTML = `<div class="row-header"><span class="row-title">${cat}</span><span style="color:var(--red); font-size:12px;" onclick="abrirCategoria('${cat}', '${t.id}')">Ver Tudo ❯</span></div><div class="row-posters"></div>`;
+                        container.appendChild(row);
+                        const posterRow = row.querySelector('.row-posters');
+                        const nomesVistos = new Set();
+                        itens.forEach(it => {
+                            if(it.tipo === 'serie') {
+                                let base = it.nome.split(" -")[0].trim();
+                                if(!nomesVistos.has(base)) { nomesVistos.add(base); const sComp = itens.filter(s => s.nome.startsWith(base)); criarCard(it, sComp, true, posterRow); }
+                            } else { criarCard(it, it.url, false, posterRow); }
+                        });
+                    });
+                }
+            });
+        }
+
+        function criarCard(itemData, dados, isSerie, local) {
+            const card = document.createElement('div');
+            let hasProgress = false;
+            if(isSerie) { dados.forEach(temp => { temp.url.split('\n').forEach((linha, idx) => { const epi = tratarLink(linha, idx); if(deveMostrarContinuar(epi.url)) hasProgress = true; }); }); } 
+            else { const epi = tratarLink(itemData.url, 0); if(deveMostrarContinuar(epi.url)) hasProgress = true; }
+            card.className = `card ${hasProgress ? 'em-andamento' : ''}`;
+            card.innerHTML = `${hasProgress ? '<div class="badge-continuar">Continuar</div>' : ''}<img src="${itemData.capa}"><div class="card-title">${isSerie ? itemData.nome.split(" -")[0].trim() : itemData.nome}</div>`;
+            card.onclick = () => abrirInfo(itemData, dados, isSerie);
+            local.appendChild(card);
+        }
+
+        window.abrirInfo = (item, dados, isSerie) => {
+            const modal = document.getElementById('modal-info');
+            document.getElementById('info-bg').style.backgroundImage = `url(${item.capa})`;
+            document.getElementById('info-titulo').innerText = isSerie ? item.nome.split(" -")[0].trim() : item.nome;
+            document.getElementById('info-sinopse').innerText = item.sinopse || "Nenhuma sinopse disponível.";
+            const btnPlay = document.getElementById('btn-info-play');
+            btnPlay.onclick = () => { modal.style.display = 'none'; isSerie ? abrirTemporadas(item.nome.split(" -")[0].trim(), dados) : iniciarPlayer(dados, item.nome); };
+            modal.style.display = 'block';
+        };
+
+        window.abrirTemporadas = (nome, lista) => {
+            document.getElementById('modal-temp').style.display = 'block';
+            document.getElementById('temp-titulo').innerText = nome;
+            const cont = document.getElementById('temp-lista'); cont.innerHTML = "";
+            lista.forEach(it => {
+                let tempProgress = false;
+                it.url.split('\n').forEach((linha, idx) => { const epi = tratarLink(linha, idx); if(deveMostrarContinuar(epi.url)) tempProgress = true; });
+                const d = document.createElement('div'); d.className = `folder-item ${tempProgress ? 'progresso-yellow' : ''}`;
+                d.innerHTML = `<span>${it.nome}</span><span>❯</span>`;
+                d.onclick = () => abrirEpisodios(it.nome, it.url);
+                cont.appendChild(d);
+            });
+        };
+
+        function abrirEpisodios(nome, urls) {
+            document.getElementById('modal-epis').style.display = 'block';
+            document.getElementById('epis-titulo').innerText = nome;
+            const cont = document.getElementById('epis-lista'); cont.innerHTML = "";
+            const listaLinhas = urls.split('\n').filter(l => l.trim());
+            listaLinhas.forEach((linha, i) => {
+                const epi = tratarLink(linha, i);
+                const showProg = deveMostrarContinuar(epi.url);
+                const d = document.createElement('div'); 
+                d.className = `folder-item ${showProg ? 'progresso-yellow' : ''}`;
+                d.innerHTML = `<span>${epi.nome}</span><span>${showProg ? '🕒' : '▶'}</span>`;
+                d.onclick = () => { iniciarPlayer(linha, nome, listaLinhas, i); document.getElementById('modal-epis').style.display='none'; document.getElementById('modal-temp').style.display='none'; };
+                cont.appendChild(d);
+            });
+        }
+
+        window.abrirCategoria = (cat, tipo) => {
+            document.getElementById('conteudo-home').style.display = 'none';
+            document.getElementById('view-detalhe').style.display = 'block';
+            document.getElementById('btn-back-main').style.visibility = 'visible';
+            document.getElementById('titulo-categoria-aberta').innerText = cat;
+            const grid = document.getElementById('grid-itens'); grid.innerHTML = "";
+            const itensFiltrados = bancoDados.filter(it => it.categoria === cat && it.tipo === tipo);
+            const nomesVistos = new Set();
+            itensFiltrados.forEach(it => {
+                if(it.tipo === 'serie') {
+                    let base = it.nome.split(" -")[0].trim();
+                    if(!nomesVistos.has(base)) { nomesVistos.add(base); const sComp = itensFiltrados.filter(s => s.nome.startsWith(base)); criarCard(it, sComp, true, grid); }
+                } else { criarCard(it, it.url, false, grid); }
+            });
+        };
+
+        window.toggleU = (id, s) => update(ref(db, `usuarios/${id}`), { suspenso: !s });
+        window.delU = (id) => confirm("Excluir?") && remove(ref(db, `usuarios/${id}`));
+        window.editU = async (id) => { const snap = await get(ref(db, `usuarios/${id}`)); const d = snap.val(); document.getElementById('edit-id-user').value = id; document.getElementById('u-nome').value = d.user; document.getElementById('u-pass').value = d.pass; };
+        document.getElementById('btn-salvar-user').onclick = () => { const id = document.getElementById('edit-id-user').value; if(id) update(ref(db, `usuarios/${id}`), { user: document.getElementById('u-nome').value, pass: document.getElementById('u-pass').value }); };
+        document.getElementById('btn-novo-user').onclick = () => { const u = document.getElementById('u-nome').value, p = document.getElementById('u-pass').value; if(u && p) push(ref(db, 'usuarios'), { user: u, pass: p, expira: Date.now() + 3600000, suspenso: false, telas: 1 }); };
+        window.addDiasCustom = (id, expAtual) => { const dias = prompt("Dias:"); if(dias) { if(dias === "999") update(ref(db, `usuarios/${id}`), { expira: 999 }); else update(ref(db, `usuarios/${id}`), { expira: ((expAtual < Date.now() || expAtual === 999) ? Date.now() : expAtual) + (parseInt(dias) * 86400000) }); } };
+        window.addTelasCustom = (id, atual) => { const n = prompt("Limite de telas:", atual || 1); if(n) update(ref(db, `usuarios/${id}`), { telas: parseInt(n) }); };
+
+        function renderADMConteudo(termo = "") {
+            const list = document.getElementById('tabela-conteudo-adm'); if(!list) return; list.innerHTML = "";
+            bancoDados.filter(it => it.nome.toLowerCase().includes(termo.toLowerCase())).forEach(d => {
+                list.innerHTML += `<tr><td>${d.nome}</td><td style="color:var(--red)">${d.categoria}</td><td><button class="btn-mini" style="background:#007bff" onclick="window.editC('${d.id}')">ED</button><button class="btn-mini" style="background:#dc3545" onclick="window.delC('${d.id}')">X</button></td></tr>`;
+            });
+        }
+        window.editC = (id) => { const d = bancoDados.find(b => b.id === id); document.getElementById('edit-id-cont').value = id; document.getElementById('c-nome').value = d.nome; document.getElementById('c-tipo').value = d.tipo; document.getElementById('c-cat').value = d.categoria; document.getElementById('c-sinopse').value = d.sinopse || ""; document.getElementById('c-links').value = d.url; document.getElementById('c-capa').value = d.capa; window.scrollTo(0,0); };
+        document.getElementById('btn-limpar-db').onclick = () => { document.getElementById('edit-id-cont').value = ""; document.getElementById('c-nome').value = ""; document.getElementById('c-cat').value = ""; document.getElementById('c-sinopse').value = ""; document.getElementById('c-links').value = ""; document.getElementById('c-capa').value = ""; alert("Limpo!"); };
+        document.getElementById('btn-salvar-db').onclick = () => { const id = document.getElementById('edit-id-cont').value; const obj = { nome: document.getElementById('c-nome').value, tipo: document.getElementById('c-tipo').value, categoria: document.getElementById('c-cat').value.toUpperCase(), sinopse: document.getElementById('c-sinopse').value, url: document.getElementById('c-links').value, capa: document.getElementById('c-capa').value }; id ? update(ref(db, `conteudo/${id}`), obj) : push(ref(db, 'conteudo'), obj); alert("Sucesso!"); };
+        window.delC = (id) => confirm("Excluir?") && remove(ref(db, `conteudo/${id}`));
+        document.getElementById('filtro-adm-conteudo').onkeyup = (e) => renderADMConteudo(e.target.value);
+        document.getElementById('busca-user').onkeyup = (e) => { const t = e.target.value.toLowerCase(); const home = document.getElementById('conteudo-home'), detail = document.getElementById('view-detalhe'), grid = document.getElementById('grid-itens'); if(t.length > 0) { home.style.display = 'none'; detail.style.display = 'block'; grid.innerHTML = ""; bancoDados.filter(it => it.nome.toLowerCase().includes(t)).forEach(it => criarCard(it, it.url, it.tipo === 'serie', grid)); } else { home.style.display = 'block'; detail.style.display = 'none'; } };
+        document.getElementById('b-a').onclick = () => { document.getElementById('main-content').style.display='none'; document.getElementById('admin-panel').style.display='block'; };
+        document.getElementById('btn-voltar-adm').onclick = () => { document.getElementById('admin-panel').style.display='none'; document.getElementById('main-content').style.display='block'; };
+    </script>
+</body>
+</html>
