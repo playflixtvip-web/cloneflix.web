@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CLONEFLIX VIP</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        :root { --bg: #0b0b0b; --red: #E50914; --card: #141414; --text: #fff; --border: #222; --yellow: #ffcc00; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; overflow-x: hidden; }
+        
+        header { position: fixed; top: 0; width: 100%; height: 60px; background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%); display: flex; align-items: center; padding: 0 15px; z-index: 1000; justify-content: space-between; box-sizing: border-box; }
+        .logo { color: var(--red); font-weight: bold; font-size: 22px; letter-spacing: -1px; }
+        .btn-voltar { background: #2a2a2a; color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .btn-red { background: var(--red); color: white; border: none; padding: 8px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 12px; }
+
+        .user-validade { font-size: 10px; color: var(--yellow); font-weight: bold; text-align: right; line-height: 1.2; }
+
+        #portal-inicio { display: none; padding: 80px 20px 20px; text-align: center; min-height: 100vh; box-sizing: border-box; }
+        .grid-portal { display: grid; grid-template-columns: 1fr; gap: 20px; max-width: 500px; margin: 0 auto; }
+        .btn-portal { background: linear-gradient(45deg, #141414, #222); border: 2px solid #333; border-radius: 15px; padding: 40px 20px; color: white; font-size: 24px; font-weight: 900; text-transform: uppercase; cursor: pointer; transition: 0.3s; display: flex; align-items: center; justify-content: center; gap: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .btn-portal:active { transform: scale(0.95); border-color: var(--red); }
+
+        .section-divider { margin: 30px 15px 10px; padding: 5px 0; border-bottom: 2px solid var(--red); display: inline-block; font-size: 18px; font-weight: 900; color: #fff; text-transform: uppercase; }
+        .row { margin: 10px 0 30px 15px; }
+        .row-header { display: flex; justify-content: space-between; align-items: center; padding-right: 15px; margin-bottom: 10px; }
+        .row-title { font-size: 16px; font-weight: bold; color: #e5e5e5; }
+        .row-posters { display: flex; overflow-x: auto; gap: 10px; padding: 10px 0; }
+        .row-posters::-webkit-scrollbar { display: none; }
+
+        .card { flex: 0 0 auto; width: 110px; border-radius: 4px; overflow: hidden; cursor: pointer; background: var(--card); border: 1px solid #222; position: relative; transition: 0.2s; }
+        .card img { width: 100%; aspect-ratio: 2/3; object-fit: cover; display: block; }
+        .card-title { 
+            font-size: 11px; padding: 6px 5px; text-align: center; color: #fff; font-weight: 500;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; text-overflow: ellipsis; white-space: normal; height: 32px;
+        }
+        .card.em-andamento { border: 2px solid var(--yellow); box-shadow: 0 0 10px rgba(255, 204, 0, 0.3); }
+        .badge-continuar { position: absolute; top: 5px; right: 5px; background: var(--yellow); color: #000; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; }
+
+        #player-area { width: 100%; background: #000; position: sticky; top: 60px; z-index: 900; display: none; border-bottom: 2px solid var(--red); }
+        .player-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; }
+        video { width: 100%; height: 100%; }
+
+        .player-nav { display: flex; justify-content: space-between; padding: 10px; background: #111; gap: 5px; }
+        .list-epis-player { background: #000; max-height: 200px; overflow-y: auto; padding: 10px; border-top: 1px solid #222; display: none; }
+        .epi-item-player { padding: 12px; border-bottom: 1px solid #222; font-size: 13px; display: flex; justify-content: space-between; cursor: pointer; }
+        .epi-item-player.active { color: var(--red); font-weight: bold; background: #111; }
+        .epi-item-player.assistido { border-right: 4px solid var(--yellow); }
+
+        .container-box { background: var(--card); border-radius: 12px; padding: 20px; margin: 15px; border: 1px solid var(--border); }
+        input, textarea, select { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #333; background: #222; color: #fff; box-sizing: border-box; }
+        .tabela-container { overflow-x: auto; background: #0c0c0c; border-radius: 8px; max-height: 350px; overflow-y: auto; border: 1px solid #222; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #222; white-space: nowrap; }
+        .btn-mini { padding: 6px 10px; border-radius: 4px; border: none; color: white; cursor: pointer; font-size: 10px; font-weight: bold; margin-right: 2px; }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 2000; padding: 20px; overflow-y: auto; }
+        .folder-item { background: #1a1a1a; padding: 15px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid var(--red); cursor: pointer; display: flex; justify-content: space-between; font-weight: bold; }
+        .folder-item.progresso-yellow { border-right: 4px solid var(--yellow); }
+
+        #modal-info { display: none; position: fixed; inset: 0; background: #000; z-index: 3000; overflow-y: auto; }
+        .info-capa-bg { width: 100%; height: 40vh; background-size: cover; background-position: center; position: relative; }
+        .info-capa-bg::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, #000, transparent); }
+        .info-content { padding: 20px; position: relative; margin-top: -50px; }
+        .info-titulo { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
+        .info-sinopse { font-size: 14px; color: #ccc; line-height: 1.5; margin-bottom: 20px; }
+
+        .btn-perfil { background: #2a2a2a; color: white; border: none; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+
+        #tela-bloqueio { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    </style>
+</head>
+<body>
+
+    <div id="tela-bloqueio">
+        <h1 style="color:var(--red); font-size: 30px;">SESSÃO ENCERRADA</h1>
+        <p style="color: #ccc;">Este login foi utilizado em outro aparelho.</p>
+        <p style="font-size: 12px; color: var(--yellow);">O limite de telas foi atingido e a sessão anterior foi desconectada.</p>
+        <button class="btn-red" style="margin-top: 20px;" onclick="location.reload()">VOLTAR AO LOGIN</button>
+    </div>
+
+    <div id="login-container" style="position:fixed; inset:0; background:#000; display:flex; align-items:center; justify-content:center; z-index:9999;">
+        <div class="container-box" style="width: 85%; max-width: 350px; text-align: center;">
+            <h1 style="color:var(--red); margin-bottom: 20px;">CLONEFLIX</h1>
+            <input type="text" id="u-l" placeholder="Usuário">
+            <input type="password" id="p-l" placeholder="Senha">
+            <button class="btn-red" id="btn-entrar" style="width:100%">ENTRAR</button>
+        </div>
+    </div>
+
+    <div id="main-content" style="display:none; padding-top: 60px;">
+        <header>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button class="btn-voltar" id="btn-portal-back" style="display:none" onclick="voltarAoPortal()">← INÍCIO</button>
+                <div class="logo">CLONEFLIX</div>
+            </div>
+            
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div id="display-validade" class="user-validade"></div>
+                <div style="display:flex; gap:5px;">
+                    <button id="b-a" class="btn-red" style="display:none; padding: 6px 10px;">ADM</button>
+                    <button class="btn-perfil" onclick="abrirPerfil()">👤</button>
+                    <button class="btn-voltar" onclick="location.reload()" style="padding: 6px 10px;">SAIR</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="portal-inicio">
+            <h2 style="margin-bottom: 30px; font-weight: 300;">O que vamos assistir hoje?</h2>
+            <div class="grid-portal">
+                <button class="btn-portal" onclick="filtrarPortal('tv')">📺 <span>TV AO VIVO</span></button>
+                <button class="btn-portal" onclick="filtrarPortal('filme')">🎬 <span>FILMES</span></button>
+                <button class="btn-portal" onclick="filtrarPortal('serie')">🍿 <span>SÉRIES</span></button>
+            </div>
+        </div>
+
+        <div id="conteudo-app" style="display: none;">
+            <div id="player-area">
+                <div class="player-wrapper"><video id="main-video" controls playsinline></video></div>
+                <div class="player-nav">
+                    <button class="btn-voltar" id="btn-prev-epi" style="flex:1; margin-right:5px; display:none;">⏮ ANTERIOR</button>
+                    <button class="btn-voltar" id="btn-next-epi" style="flex:1; margin-right:5px; display:none;">PRÓXIMO ⏭</button>
+                    <button class="btn-voltar" onclick="fecharPlayer()" style="background:var(--red)">FECHAR</button>
+                </div>
+                <div id="lista-epis-inline" class="list-epis-player"></div>
+            </div>
+            <div style="padding: 15px 15px 0 15px;"><input type="text" id="busca-user" placeholder="🔍 Buscar títulos..."></div>
+            <div id="conteudo-home"></div>
+            <div id="view-detalhe" style="display: none;">
+                <button id="btn-back-main" class="btn-voltar" style="margin: 0 15px 10px; visibility: hidden;" onclick="this.parentElement.style.display='none'; document.getElementById('conteudo-home').style.display='block'; this.style.visibility='hidden';">← VOLTAR</button>
+                <h2 id="titulo-categoria-aberta" style="margin: 0 15px 10px; font-size: 18px; color: var(--red);"></h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 12px; padding: 15px;" id="grid-itens"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-perfil" class="modal">
+        <div class="container-box" style="margin-top: 15vh; text-align: center;">
+            <h2 style="color:var(--red);">MEU PERFIL</h2>
+            <div id="perfil-nome-exibicao" style="margin-bottom: 15px; font-weight: bold; font-size: 18px; color: #fff;"></div>
+            <p style="font-size: 13px; color: #888;">Altere sua senha de acesso</p>
+            <input type="password" id="perfil-senha-atual" placeholder="Senha Atual">
+            <input type="password" id="perfil-nova-senha" placeholder="Nova Senha">
+            <input type="password" id="perfil-confirmar-senha" placeholder="Confirmar Nova Senha">
+            <button class="btn-red" id="btn-atualizar-senha" style="width: 100%;">SALVAR NOVA SENHA</button>
+            <button class="btn-voltar" onclick="document.getElementById('modal-perfil').style.display='none'" style="width:100%; margin-top:10px;">VOLTAR</button>
+        </div>
+    </div>
+
+    <div id="modal-info">
+        <div class="info-capa-bg" id="info-bg">
+             <button class="btn-voltar" onclick="document.getElementById('modal-info').style.display='none'" style="position:absolute; top:20px; left:20px; background: rgba(0,0,0,0.6);">✕</button>
+        </div>
+        <div class="info-content">
+            <div class="info-titulo" id="info-titulo">Título</div>
+            <div class="info-sinopse" id="info-sinopse">Sinopse aqui...</div>
+            <button class="btn-red" id="btn-info-play" style="width:100%; padding: 15px; font-size: 16px; margin-bottom: 10px;">▶ ASSISTIR AGORA</button>
+            <button class="btn-voltar" onclick="document.getElementById('modal-info').style.display='none'" style="width:100%; padding: 15px; background:#333;">VOLTAR</button>
+        </div>
+    </div>
+
+    <div id="admin-panel" style="display: none; padding-top: 20px; background: #000; min-height: 100vh;">
+        <div style="padding: 0 15px;"><button class="btn-voltar" id="btn-voltar-adm">← VOLTAR AO APP</button></div>
+        <div class="container-box">
+            <h3>Gerenciar Conteúdo</h3>
+            <input type="hidden" id="edit-id-cont"><input id="c-nome" placeholder="Nome">
+            <select id="c-tipo"><option value="tv">TV / CANAIS</option><option value="filme">FILME</option><option value="serie">SÉRIE</option></select>
+            <input id="c-cat" placeholder="Categoria">
+            <textarea id="c-sinopse" placeholder="Sinopse do Conteúdo" rows="3"></textarea>
+            <textarea id="c-links" placeholder="Links (um por linha)" rows="2"></textarea>
+            <input id="c-capa" placeholder="URL da Capa">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-red" id="btn-salvar-db" style="flex:2">SALVAR / ATUALIZAR</button>
+                <button class="btn-red" id="btn-limpar-db" style="background:#007bff; flex:1">NOVO</button>
+            </div>
+            <input type="text" id="filtro-adm-conteudo" placeholder="🔍 Filtrar..." style="margin-top:20px;">
+            <div class="tabela-container"><table><thead><tr><th>NOME</th><th>CATEGORIA</th><th>AÇÃO</th></tr></thead><tbody id="tabela-conteudo-adm"></tbody></table></div>
+        </div>
+        <div class="container-box">
+            <h3>Gerenciar Usuários</h3>
+            <input type="hidden" id="edit-id-user"><input id="u-nome" placeholder="Login"><input id="u-pass" placeholder="Senha">
+            <div style="display: flex; gap: 10px;"><button class="btn-red" id="btn-salvar-user" style="background: #28a745; flex:1">SALVAR</button><button class="btn-red" id="btn-novo-user" style="background: #007bff; flex:1">TESTE 1H</button></div>
+            <div class="tabela-container" style="margin-top: 15px;"><table><thead><tr><th>LOGIN</th><th>T / VENCIMENTO</th><th>AÇÃO</th></tr></thead><tbody id="lista-user-adm"></tbody></table></div>
+        </div>
+    </div>
+
+    <div id="modal-temp" class="modal"><h2 id="temp-titulo" style="color:var(--red);"></h2><div id="temp-lista"></div><button class="btn-voltar" onclick="this.parentElement.style.display='none'" style="width:100%; margin-top:20px;">FECHAR</button></div>
+    <div id="modal-epis" class="modal" style="z-index: 2001;"><h2 id="epis-titulo" style="color:var(--red);"></h2><div id="epis-lista"></div><button class="btn-voltar" onclick="this.parentElement.style.display='none'" style="width:100%; margin-top:20px;">VOLTAR</button></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, push, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = { apiKey: "AIzaSyBGOGCL_TYyNrhuxS9jIa7k8Y-IyVr4ggo", databaseURL: "https://cloneflix-16f9c-default-rtdb.firebaseio.com" };
+        const app = initializeApp(firebaseConfig); const db = getDatabase(app);
+        let bancoDados = []; const video = document.getElementById('main-video');
+        let playlistAtual = []; let indexEpiAtual = 0; let linkAtual = ""; let hls = null;
+        let tipoAtualAberto = null;
+        let idUsuarioLogado = null;
+        let nomeUsuarioLogado = "";
+        const idSessaoLocal = Math.random().toString(36).substring(2, 15);
+
+        const tratarLink = (linha, index) => {
+            if (linha.includes('|')) {
+                const partes = linha.split('|');
+                return { nome: partes[0].trim(), url: partes[1].trim() };
+            }
+            return { nome: `Episódio ${index + 1}`, url: linha.trim() };
+        };
+
+        function deveMostrarContinuar(url) {
+            const salvo = localStorage.getItem('time_' + btoa(url));
+            const total = localStorage.getItem('total_' + btoa(url));
+            if (!salvo || parseFloat(salvo) <= 5) return false;
+            if (total) {
+                const perc = (parseFloat(salvo) / parseFloat(total)) * 100;
+                if (perc >= 95) return false; 
+            }
+            return true;
+        }
+
+        document.getElementById('btn-entrar').onclick = async () => {
+            const u = document.getElementById('u-l').value; const p = document.getElementById('p-l').value;
+            if(u === "Rhuan" && p === "2026") { 
+                document.getElementById('display-validade').innerHTML = "MODO<br>ADMIN";
+                idUsuarioLogado = "admin";
+                nomeUsuarioLogado = "ADMINISTRADOR";
+                logar(true); 
+                return; 
+            }
+            const snap = await get(ref(db, 'usuarios'));
+            let enc = null; snap.forEach(c => { const d = c.val(); if(d.user === u && d.pass === p) enc = {...d, id: c.key}; });
+            if(enc) {
+                if(enc.suspenso) { alert("Sua conta está suspensa!"); return; }
+                if(enc.expira !== 999 && enc.expira < Date.now()) { alert("Seu acesso expirou!"); return; }
+                
+                const sessoesRef = ref(db, `usuarios/${enc.id}/sessoes`);
+                const sessoesSnap = await get(sessoesRef);
+                let sessoes = sessoesSnap.val() || {};
+                let limite = enc.telas || 1;
+
+                let idsAtivos = Object.keys(sessoes).sort((a,b) => sessoes[a] - sessoes[b]);
+                if(idsAtivos.length >= limite && !idsAtivos.includes(idSessaoLocal)) {
+                    const antiga = idsAtivos[0];
+                    await remove(ref(db, `usuarios/${enc.id}/sessoes/${antiga}`));
+                    delete sessoes[antiga];
+                }
+
+                sessoes[idSessaoLocal] = { time: Date.now(), online: false };
+                await update(sessoesRef, sessoes);
+                
+                monitorarSessao(enc.id);
+                window.onbeforeunload = () => { remove(ref(db, `usuarios/${enc.id}/sessoes/${idSessaoLocal}`)); };
+
+                let dataVal = (enc.expira === 999) ? "ACESSO<br>VITALÍCIO" : `VENCIMENTO:<br>${new Date(enc.expira).toLocaleString('pt-br', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+                document.getElementById('display-validade').innerHTML = dataVal;
+                idUsuarioLogado = enc.id;
+                nomeUsuarioLogado = enc.user;
+                logar(false);
+            } else { alert("Usuário ou senha incorretos!"); }
+        };
+
+        function monitorarSessao(userId) {
+            onValue(ref(db, `usuarios/${userId}/sessoes/${idSessaoLocal}`), (snap) => {
+                if (!snap.exists()) {
+                    document.getElementById('main-content').style.display = 'none';
+                    document.getElementById('tela-bloqueio').style.display = 'flex';
+                    video.pause();
+                }
+            });
+        }
+
+        window.abrirPerfil = () => {
+            if(idUsuarioLogado === "admin") { alert("Painel ADM."); return; }
+            document.getElementById('perfil-nome-exibicao').innerText = `USUÁRIO: ${nomeUsuarioLogado}`;
+            document.getElementById('modal-perfil').style.display = 'block';
+     
