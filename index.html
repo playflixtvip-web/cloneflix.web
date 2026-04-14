@@ -200,9 +200,6 @@
         
         const app = initializeApp(firebaseConfig); 
         const db = getDatabase(app);
-
-        // CONFIGURAÇÃO DA API AUTOMÁTICA DA VERCEL
-        const MINHA_API_URL = "https://cloneflix-web.vercel.app/api/get-video?url=";
         
         let bancoDados = []; const video = document.getElementById('main-video');
         let playlistAtual = []; let indexEpiAtual = 0; let linkAtual = ""; let hls = null;
@@ -210,6 +207,9 @@
         let idUsuarioLogado = null;
         let nomeUsuarioLogado = "";
         const idSessaoLocal = Math.random().toString(36).substring(2, 15);
+        
+        // URL DA SUA API NA VERCEL
+        const MINHA_API_URL = "https://api-cloneflix.vercel.app/api/get-video?url=";
 
         const tratarLink = (linha, index) => {
             if (linha.includes('|')) {
@@ -372,16 +372,18 @@
             renderHome(tipoAtualAberto);
         };
 
-        window.iniciarPlayer = (urlBruta, nome, listaEpis = [], index = 0) => {
+        // FUNÇÃO ATUALIZADA PARA O PROCESSO AUTOMÁTICO
+        window.iniciarPlayer = async (urlBruta, nome, listaEpis = [], index = 0) => {
             const dadosEpi = tratarLink(urlBruta, index);
-            
-            // LÓGICA AUTOMÁTICA: SE NÃO FOR .M3U8, PASSA PELA API
             let linkFinal = dadosEpi.url;
-            if (!linkFinal.includes('.m3u8')) {
+
+            // Se o link for uma página de site, passa pela API
+            if (!linkFinal.includes('.m3u8') && !linkFinal.includes('.mp4')) {
                 linkFinal = MINHA_API_URL + encodeURIComponent(linkFinal);
             }
-            linkAtual = linkFinal;
 
+            linkAtual = linkFinal;
+            
             if (idUsuarioLogado && idUsuarioLogado !== "admin") {
                 update(ref(db, `usuarios/${idUsuarioLogado}/sessoes/${idSessaoLocal}`), { online: true, titulo: nome });
             }
