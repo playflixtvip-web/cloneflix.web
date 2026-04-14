@@ -6,37 +6,31 @@ export default async function handler(req, res) {
     if (!url) return res.status(400).json({ error: "URL ausente" });
 
     try {
-        const decodedUrl = decodeURIComponent(url);
-        const response = await fetch(decodedUrl, {
+        const targetUrl = decodeURIComponent(url);
+        const response = await fetch(targetUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                'Referer': 'https://redecanaishd.space/'
             }
         });
 
         const html = await response.text();
         
-        // 1. Tenta achar o link .m3u8 direto (caso já esteja na página)
-        let regex = /(https?:\/\/[^"']+\.m3u8[^"']*)/i;
-        let match = html.match(regex);
+        // Tenta encontrar links .m3u8, .mp4 ou links de players conhecidos (Vidmoly, Abyss, etc)
+        const regexVideo = /(https?:\/\/[^"']+\.(?:m3u8|mp4)[^"']*)/i;
+        const regexEmbed = /https?:\/\/(?:vidmoly|abyss|redecanais|embed)[^"']+/i;
 
-        // 2. Se não achou, procura por links de iFrame (as Opções de player)
-        if (!match) {
-            const iframeRegex = /<iframe[^>]+src="([^"]+)"/i;
-            const iframeMatch = html.match(iframeRegex);
-            if (iframeMatch) {
-                // Se achou um iframe, tenta buscar o vídeo dentro dele
-                const innerResp = await fetch(iframeMatch[1]);
-                const innerHtml = await innerResp.text();
-                match = innerHtml.match(regex);
-            }
-        }
+        let match = html.match(regexVideo) || html.match(regexEmbed);
 
         if (match && match[0]) {
-            res.status(200).json({ url: match[0].replace(/\\/g, '') });
+            let finalUrl = match[0].replace(/\\/g, '');
+            
+            // Se o robô achou um link de embed em vez do vídeo direto, mandamos esse para o player
+            res.status(200).json({ url: finalUrl });
         } else {
-            res.status(404).json({ error: "Vídeo não encontrado. Tente outra opção no site original." });
+            res.status(404).json({ error: "Não foi possível encontrar o player automaticamente." });
         }
     } catch (e) {
-        res.status(500).json({ error: "Erro ao acessar o site." });
+        res.status(500).json({ error: "Erro de conexão com o servidor." });
     }
 }
