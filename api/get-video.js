@@ -1,38 +1,38 @@
 export default async function handler(req, res) {
-    // Permite que o seu site acesse a API sem bloqueios (CORS)
-    res.setHeader('Access-Control-Allow-Credentials', true);
+    // Libera o acesso para o seu site não ser bloqueado
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-    if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
-    }
+    if (req.method === 'OPTIONS') return res.status(200).end();
 
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: "URL ausente" });
 
     try {
-        const response = await fetch(decodeURIComponent(url), {
+        const targetUrl = decodeURIComponent(url);
+        
+        const response = await fetch(targetUrl, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
-                'Referer': 'https://redecanaishd.space/'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': new URL(targetUrl).origin
             }
         });
 
         const html = await response.text();
-        // Procura por links .m3u8 dentro do código da página
-        const regex = /(https?:\/\/[^"']+\.m3u8[^"']*)/;
+        
+        // Esta regex é mais poderosa para achar links .m3u8 escondidos
+        const regex = /(https?:\/\/[^"']+\.m3u8[^"']*|https?:\/\/[^"']+\.mp4[^"']*)/i;
         const match = html.match(regex);
 
         if (match && match[0]) {
-            const finalUrl = match[0].replace(/\\/g, '');
-            res.status(200).json({ url: finalUrl });
+            // Limpa o link de barras invertidas que alguns sites usam para enganar robôs
+            const cleanUrl = match[0].replace(/\\/g, '');
+            return res.status(200).json({ url: cleanUrl });
         } else {
-            res.status(404).json({ error: "Vídeo não encontrado na página." });
+            return res.status(404).json({ error: "O robô não achou o vídeo nesta página." });
         }
     } catch (error) {
-        res.status(500).json({ error: "Erro ao conectar com o site de origem." });
+        return res.status(500).json({ error: "Erro ao acessar a página do filme." });
     }
 }
