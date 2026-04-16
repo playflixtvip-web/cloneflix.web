@@ -39,8 +39,8 @@
         .badge-continuar { position: absolute; top: 5px; right: 5px; background: var(--yellow); color: #000; font-size: 8px; font-weight: 900; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; }
 
         #player-area { width: 100%; background: #000; position: sticky; top: 60px; z-index: 900; display: none; border-bottom: 2px solid var(--red); }
-        .player-wrapper { position: relative; width: 100%; } /* Removido aspect-ratio fixo para evitar quebras */
-        video { width: 100%; display: block; background: #000; }
+        .player-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; }
+        video { width: 100%; height: 100%; }
 
         .player-nav { display: flex; justify-content: space-between; padding: 10px; background: #111; gap: 5px; }
         .list-epis-player { background: #000; max-height: 200px; overflow-y: auto; padding: 10px; border-top: 1px solid #222; display: none; }
@@ -117,11 +117,7 @@
 
         <div id="conteudo-app" style="display: none;">
             <div id="player-area">
-                <div class="player-wrapper">
-                    <video id="main-video" controls playsinline webkit-playsinline crossorigin="anonymous">
-                        <source src="http://s.webdosdeuses.top/movie/wv4dsn/r8a97y/536754.mp4" type="video/mp4">
-                    </video>
-                </div>
+                <div class="player-wrapper"><video id="main-video" controls playsinline></video></div>
                 <div class="player-nav">
                     <button class="btn-voltar" id="btn-prev-epi" style="flex:1; margin-right:5px; display:none;">⏮ ANTERIOR</button>
                     <button class="btn-voltar" id="btn-next-epi" style="flex:1; margin-right:5px; display:none;">PRÓXIMO ⏭</button>
@@ -196,6 +192,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, push, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // CONFIGURAÇÃO DO FIREBASE (Autorizada para a Vercel)
         const firebaseConfig = { 
             apiKey: "AIzaSyBGOGCL_TYyNrhuxS9jIa7k8Y-IyVr4ggo", 
             databaseURL: "https://cloneflix-16f9c-default-rtdb.firebaseio.com" 
@@ -211,6 +208,7 @@
         let nomeUsuarioLogado = "";
         const idSessaoLocal = Math.random().toString(36).substring(2, 15);
 
+        // Funções auxiliares mantidas para funcionamento do sistema
         const tratarLink = (linha, index) => {
             if (linha.includes('|')) {
                 const partes = linha.split('|');
@@ -230,6 +228,7 @@
             return true;
         }
 
+        // LÓGICA DE LOGIN COM SUPORTE A DOMÍNIO AUTORIZADO
         document.getElementById('btn-entrar').onclick = async () => {
             const u = document.getElementById('u-l').value; const p = document.getElementById('p-l').value;
             if(u === "Rhuan" && p === "2026") { 
@@ -271,6 +270,7 @@
             } else { alert("Usuário ou senha incorretos!"); }
         };
 
+        // Funções de monitoramento e UI
         function monitorarSessao(userId) {
             onValue(ref(db, `usuarios/${userId}/sessoes/${idSessaoLocal}`), (snap) => {
                 if (!snap.exists()) {
@@ -335,18 +335,28 @@
                 const list = document.getElementById('lista-user-adm'); if(!list) return; list.innerHTML = "";
                 s.forEach(it => {
                     const u = it.val();
-                    const corStatus = u.suspenso ? '#dc3545' : '#28a745';
+                    const corStatusBotao = u.suspenso ? '#dc3545' : '#28a745';
                     let vTxt = (u.expira === 999) ? "VITALÍCIO" : new Date(u.expira).toLocaleDateString('pt-br');
                     
-                    let statusLabel = '<span class="status-dot" style="background:#444"></span> Offline';
+                    // LÓGICA DE STATUS SOLICITADA: ATIVO, SUSPENSO OU EXPIRADO
+                    let statusLabel = "";
+                    if (u.suspenso) {
+                        statusLabel = '<span class="status-dot" style="background:#dc3545"></span> <span style="color:#dc3545; font-weight:bold;">SUSPENSO</span>';
+                    } else if (u.expira !== 999 && u.expira < Date.now()) {
+                        statusLabel = '<span class="status-dot" style="background:#ffc107"></span> <span style="color:#ffc107; font-weight:bold;">EXPIRADO</span>';
+                    } else {
+                        statusLabel = '<span class="status-dot" style="background:#28a745"></span> <span style="color:#28a745; font-weight:bold;">ATIVO</span>';
+                    }
+
+                    // Verifica se está assistindo algo para manter o detalhe visual (opcional)
                     if (u.sessoes) {
                         const sessoes = Object.values(u.sessoes);
                         const ativa = sessoes.find(s => s.online === true);
-                        if (ativa) statusLabel = `<span class="status-dot" style="background:#28a745"></span> <span style="color:#28a745">Online</span><br><small style="color:var(--yellow); font-size:9px;">${ativa.titulo || ''}</small>`;
+                        if (ativa) statusLabel += `<br><small style="color:var(--yellow); font-size:9px;">Assistindo: ${ativa.titulo || ''}</small>`;
                     }
 
                     list.innerHTML += `<tr><td>${u.user}<br>${statusLabel}</td><td><span style="color:var(--yellow)">[${u.telas || 1}T]</span> ${vTxt}</td><td>
-                        <button class="btn-mini" style="background:${corStatus}" onclick="window.toggleU('${it.key}', ${u.suspenso})">SUSP.</button>
+                        <button class="btn-mini" style="background:${corStatusBotao}" onclick="window.toggleU('${it.key}', ${u.suspenso})">SUSP.</button>
                         <button class="btn-mini" style="background:#ffc107; color:#000" onclick="window.addDiasCustom('${it.key}', ${u.expira})">+D</button>
                         <button class="btn-mini" style="background:#6f42c1" onclick="window.addTelasCustom('${it.key}', ${u.telas || 1})">+T</button>
                         <button class="btn-mini" style="background:#007bff" onclick="window.editU('${it.key}')">ED</button>
@@ -384,15 +394,8 @@
             if(playlistAtual.length > 1) { listDiv.style.display = 'block'; document.getElementById('btn-prev-epi').style.display = 'block'; document.getElementById('btn-next-epi').style.display = 'block'; renderListaInline(); } 
             else { listDiv.style.display = 'none'; document.getElementById('btn-prev-epi').style.display = 'none'; document.getElementById('btn-next-epi').style.display = 'none'; }
             if(hls) { hls.destroy(); hls = null; }
-            
-            // Verificação de formato (HLS vs Direto)
-            if(linkAtual.includes('.m3u8')){
-                if(Hls.isSupported()){ hls = new Hls(); hls.loadSource(linkAtual); hls.attachMedia(video); hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); } 
-                else { video.src = linkAtual; video.play(); iniciarVideo(); }
-            } else {
-                video.src = linkAtual;
-                iniciarVideo();
-            }
+            if(Hls.isSupported()){ hls = new Hls(); hls.loadSource(linkAtual); hls.attachMedia(video); hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); } 
+            else { video.src = linkAtual; video.play(); iniciarVideo(); }
             window.scrollTo(0,0);
         };
 
