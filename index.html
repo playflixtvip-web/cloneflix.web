@@ -42,7 +42,6 @@
         .player-wrapper { position: relative; width: 100%; aspect-ratio: 16/9; }
         video { width: 100%; height: 100%; }
 
-        /* AJUSTE PARA TELA CHEIA AO GIRAR O CELULAR */
         @media screen and (orientation: landscape) {
             #player-area { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; border: none; }
             .player-wrapper { height: 100%; width: 100%; aspect-ratio: auto; }
@@ -110,7 +109,7 @@
                 <div style="display:flex; gap:5px;">
                     <button id="b-a" class="btn-red" style="display:none; padding: 6px 10px;">ADM</button>
                     <button class="btn-perfil" onclick="abrirPerfil()">👤</button>
-                    <button class="btn-voltar" onclick="location.reload()" style="padding: 6px 10px;">SAIR</button>
+                    <button class="btn-voltar" onclick="logout()" style="padding: 6px 10px;">SAIR</button>
                 </div>
             </div>
         </header>
@@ -215,6 +214,23 @@
         let nomeUsuarioLogado = "";
         const idSessaoLocal = Math.random().toString(36).substring(2, 15);
 
+        // --- LÓGICA DE PERSISTÊNCIA ---
+        window.addEventListener('load', () => {
+            const sessaoSalva = localStorage.getItem('cloneflix_session');
+            if (sessaoSalva) {
+                const dados = JSON.parse(sessaoSalva);
+                document.getElementById('u-l').value = dados.user;
+                document.getElementById('p-l').value = dados.pass;
+                document.getElementById('btn-entrar').click();
+            }
+        });
+
+        window.logout = () => {
+            localStorage.removeItem('cloneflix_session');
+            location.reload();
+        };
+        // ------------------------------
+
         const tratarLink = (linha, index) => {
             if (linha.includes('|')) {
                 const partes = linha.split('|');
@@ -237,6 +253,7 @@
         document.getElementById('btn-entrar').onclick = async () => {
             const u = document.getElementById('u-l').value; const p = document.getElementById('p-l').value;
             if(u === "Rhuan" && p === "2026") { 
+                localStorage.setItem('cloneflix_session', JSON.stringify({user: u, pass: p}));
                 document.getElementById('display-validade').innerHTML = "MODO<br>ADMIN";
                 idUsuarioLogado = "admin";
                 nomeUsuarioLogado = "ADMINISTRADOR";
@@ -249,6 +266,7 @@
                 if(enc.suspenso) { alert("Sua conta está suspensa!"); return; }
                 if(enc.expira !== 999 && enc.expira < Date.now()) { alert("Seu acesso expirou!"); return; }
                 
+                localStorage.setItem('cloneflix_session', JSON.stringify({user: u, pass: p}));
                 const sessoesRef = ref(db, `usuarios/${enc.id}/sessoes`);
                 const sessoesSnap = await get(sessoesRef);
                 let sessoes = sessoesSnap.val() || {};
@@ -405,8 +423,6 @@
             const salvo = localStorage.getItem('time_' + btoa(linkAtual));
             if(salvo && parseFloat(salvo) > 5) { if(confirm("Continuar de onde parou?")) { video.currentTime = parseFloat(salvo); } }
             video.play();
-
-            // MUDANÇA: FORÇAR TELA CHEIA PARA EVITAR REFRESH AO GIRAR
             setTimeout(() => {
                 if (video.requestFullscreen) video.requestFullscreen();
                 else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
