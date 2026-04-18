@@ -199,6 +199,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, push, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // MANTENDO A SUA CONFIGURAÇÃO ORIGINAL DO FIREBASE
         const firebaseConfig = { 
             apiKey: "AIzaSyBGOGCL_TYyNrhuxS9jIa7k8Y-IyVr4ggo", 
             databaseURL: "https://cloneflix-16f9c-default-rtdb.firebaseio.com" 
@@ -214,7 +215,6 @@
         let nomeUsuarioLogado = "";
         const idSessaoLocal = Math.random().toString(36).substring(2, 15);
 
-        // --- LÓGICA DE PERSISTÊNCIA ---
         window.addEventListener('load', () => {
             const sessaoSalva = localStorage.getItem('cloneflix_session');
             if (sessaoSalva) {
@@ -229,7 +229,6 @@
             localStorage.removeItem('cloneflix_session');
             location.reload();
         };
-        // ------------------------------
 
         const tratarLink = (linha, index) => {
             if (linha.includes('|')) {
@@ -413,9 +412,20 @@
             const listDiv = document.getElementById('lista-epis-inline');
             if(playlistAtual.length > 1) { listDiv.style.display = 'block'; document.getElementById('btn-prev-epi').style.display = 'block'; document.getElementById('btn-next-epi').style.display = 'block'; renderListaInline(); } 
             else { listDiv.style.display = 'none'; document.getElementById('btn-prev-epi').style.display = 'none'; document.getElementById('btn-next-epi').style.display = 'none'; }
+            
             if(hls) { hls.destroy(); hls = null; }
-            if(Hls.isSupported()){ hls = new Hls(); hls.loadSource(linkAtual); hls.attachMedia(video); hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); } 
-            else { video.src = linkAtual; video.play(); iniciarVideo(); }
+
+            // MODIFICAÇÃO PARA DROPBOX: Se o link for Dropbox ou MP4, rodamos direto sem HLS.
+            if (linkAtual.includes('dropbox.com') || linkAtual.toLowerCase().endsWith('.mp4') || linkAtual.includes('.mp4?')) {
+                video.src = linkAtual;
+                video.load();
+                iniciarVideo();
+            } else if(Hls.isSupported()){ 
+                hls = new Hls(); hls.loadSource(linkAtual); hls.attachMedia(video); hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); 
+            } else { 
+                video.src = linkAtual; video.play(); iniciarVideo(); 
+            }
+            
             window.scrollTo(0,0);
         };
 
