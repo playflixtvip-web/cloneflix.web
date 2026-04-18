@@ -77,6 +77,10 @@
 
         #tela-bloqueio { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
         .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+        /* Estilo Favoritos */
+        .btn-fav { background: none; border: 2px solid #fff; color: #fff; padding: 10px; border-radius: 50%; cursor: pointer; font-size: 20px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        .btn-fav.active { background: var(--red); border-color: var(--red); }
     </style>
 </head>
 <body>
@@ -160,7 +164,10 @@
              <button class="btn-voltar" onclick="document.getElementById('modal-info').style.display='none'" style="position:absolute; top:20px; left:20px; background: rgba(0,0,0,0.6);">✕</button>
         </div>
         <div class="info-content">
-            <div class="info-titulo" id="info-titulo">Título</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div class="info-titulo" id="info-titulo" style="margin-bottom: 0;">Título</div>
+                <button id="btn-fav-toggle" class="btn-fav">❤</button>
+            </div>
             <div class="info-sinopse" id="info-sinopse">Sinopse aqui...</div>
             <button class="btn-red" id="btn-info-play" style="width:100%; padding: 15px; font-size: 16px; margin-bottom: 10px;">▶ ASSISTIR AGORA</button>
             <button class="btn-voltar" onclick="document.getElementById('modal-info').style.display='none'" style="width:100%; padding: 15px; background:#333;">VOLTAR</button>
@@ -199,7 +206,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, push, onValue, remove, update, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // MANTENDO A SUA CONFIGURAÇÃO ORIGINAL DO FIREBASE
         const firebaseConfig = { 
             apiKey: "AIzaSyBGOGCL_TYyNrhuxS9jIa7k8Y-IyVr4ggo", 
             databaseURL: "https://cloneflix-16f9c-default-rtdb.firebaseio.com" 
@@ -215,6 +221,18 @@
         let nomeUsuarioLogado = "";
         const idSessaoLocal = Math.random().toString(36).substring(2, 15);
 
+        // --- LÓGICA DE FAVORITOS ---
+        const getFavoritos = () => JSON.parse(localStorage.getItem('cloneflix_favs') || '[]');
+        const salvarFavorito = (id) => {
+            let favs = getFavoritos();
+            if(favs.includes(id)) favs = favs.filter(i => i !== id);
+            else favs.push(id);
+            localStorage.setItem('cloneflix_favs', JSON.stringify(favs));
+            renderHome(tipoAtualAberto);
+        };
+        // ----------------------------
+
+        // --- LÓGICA DE PERSISTÊNCIA ---
         window.addEventListener('load', () => {
             const sessaoSalva = localStorage.getItem('cloneflix_session');
             if (sessaoSalva) {
@@ -229,6 +247,7 @@
             localStorage.removeItem('cloneflix_session');
             location.reload();
         };
+        // ------------------------------
 
         const tratarLink = (linha, index) => {
             if (linha.includes('|')) {
@@ -415,17 +434,22 @@
             
             if(hls) { hls.destroy(); hls = null; }
 
-            // MODIFICAÇÃO PARA DROPBOX: Se o link for Dropbox ou MP4, rodamos direto sem HLS.
-            if (linkAtual.includes('dropbox.com') || linkAtual.toLowerCase().endsWith('.mp4') || linkAtual.includes('.mp4?')) {
+            const linkLower = linkAtual.toLowerCase();
+            const isDirect = linkLower.includes('google.com') || linkLower.includes('dropbox.com') || linkLower.endsWith('.mp4');
+
+            if (isDirect) {
                 video.src = linkAtual;
                 video.load();
                 iniciarVideo();
             } else if(Hls.isSupported()){ 
-                hls = new Hls(); hls.loadSource(linkAtual); hls.attachMedia(video); hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); 
+                hls = new Hls(); 
+                hls.loadSource(linkAtual); 
+                hls.attachMedia(video); 
+                hls.on(Hls.Events.MANIFEST_PARSED, () => iniciarVideo()); 
             } else { 
-                video.src = linkAtual; video.play(); iniciarVideo(); 
+                video.src = linkAtual; 
+                iniciarVideo(); 
             }
-            
             window.scrollTo(0,0);
         };
 
@@ -460,10 +484,31 @@
         function renderHome(filtroTipo = null) {
             const container = document.getElementById('conteudo-home'); container.innerHTML = "";
             const tipos = [{ id: 'tv', label: 'TV / Canais' }, { id: 'filme', label: 'Filmes' }, { id: 'serie', label: 'Séries' }];
+            
             tipos.forEach(t => {
                 if(filtroTipo && t.id !== filtroTipo) return;
                 const itensTipo = bancoDados.filter(it => it.tipo === t.id);
                 if(itensTipo.length > 0) {
+                    
+                    // --- GRUPO DE FAVORITOS ---
+                    const favsIds = getFavoritos();
+                    const itensFav = itensTipo.filter(it => favsIds.includes(it.id));
+                    if(itensFav.length > 0) {
+                        const divF = document.createElement('div'); divF.className = 'section-divider'; divF.innerText = 'Meus Favoritos'; container.appendChild(divF);
+                        const rowF = document.createElement('div'); rowF.className = 'row';
+                        rowF.innerHTML = `<div class="row-posters"></div>`;
+                        container.appendChild(rowF);
+                        const posterRowF = rowF.querySelector('.row-posters');
+                        itensFav.forEach(it => {
+                            if(it.tipo === 'serie') {
+                                let base = it.nome.split(" -")[0].trim();
+                                const sComp = bancoDados.filter(s => s.tipo === 'serie' && s.nome.startsWith(base));
+                                criarCard(it, sComp, true, posterRowF);
+                            } else { criarCard(it, it.url, false, posterRowF); }
+                        });
+                    }
+                    // --------------------------
+
                     const div = document.createElement('div'); div.className = 'section-divider'; div.innerText = t.label; container.appendChild(div);
                     const cats = [...new Set(itensTipo.map(b => b.categoria))].sort();
                     cats.forEach(cat => {
@@ -500,6 +545,18 @@
             document.getElementById('info-bg').style.backgroundImage = `url(${item.capa})`;
             document.getElementById('info-titulo').innerText = isSerie ? item.nome.split(" -")[0].trim() : item.nome;
             document.getElementById('info-sinopse').innerText = item.sinopse || "Nenhuma sinopse disponível.";
+            
+            const btnFav = document.getElementById('btn-fav-toggle');
+            const favs = getFavoritos();
+            if(favs.includes(item.id)) btnFav.classList.add('active');
+            else btnFav.classList.remove('active');
+            
+            btnFav.onclick = () => {
+                salvarFavorito(item.id);
+                if(getFavoritos().includes(item.id)) btnFav.classList.add('active');
+                else btnFav.classList.remove('active');
+            };
+
             const btnPlay = document.getElementById('btn-info-play');
             btnPlay.onclick = () => { modal.style.display = 'none'; isSerie ? abrirTemporadas(item.nome.split(" -")[0].trim(), dados) : iniciarPlayer(dados, item.nome); };
             modal.style.display = 'block';
